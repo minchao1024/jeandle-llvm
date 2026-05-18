@@ -260,7 +260,8 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
     for (Instruction &I : instructions(N.getFunction()))
       if (auto *CB = dyn_cast<CallBase>(&I))
         if (Function *Callee = CB->getCalledFunction()) {
-          if (!Callee->isDeclaration())
+          if (!Callee->isDeclaration() ||
+              Advisor.shouldTryInlineDeclaration(*Callee))
             Calls.push_back({CB, -1});
           else if (!isa<IntrinsicInst>(I)) {
             using namespace ore;
@@ -370,6 +371,16 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
         continue;
       }
 
+      // If the advisor allows inlining declarations, the callee may have
+      // gained a definition via a resolve callback during getAdvice(). If
+      // the callee was not previously known to the LazyCallGraph (because
+      // it was a declaration when the graph was built), register it now
+      // using addSplitFunction which handles Node creation and SCC
+      // placement.
+      if (!CG.lookup(Callee) && !Callee.isDeclaration()) {
+        CG.addSplitFunction(F, Callee);
+      }
+
       int CBCostMult =
           getStringFnAttrAsInt(
               *CB, InlineConstants::FunctionInlineCostMultiplierAttributeName)
@@ -419,7 +430,8 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
               NewCallee = ICB->getCalledFunction();
           }
           if (NewCallee) {
-            if (!NewCallee->isDeclaration()) {
+            if (!NewCallee->isDeclaration() ||
+                Advisor.shouldTryInlineDeclaration(*NewCallee)) {
               Calls.push_back({ICB, NewHistoryID});
               // Continually inlining through an SCC can result in huge compile
               // times and bloated code since we arbitrarily stop at some point

@@ -1,6 +1,6 @@
 //===- Pipeline.cpp - Jeandle Pipeline ------------------------------------===//
 //
-// Copyright (c) 2025, the Jeandle-LLVM Authors. All Rights Reserved.
+// Copyright (c) 2025, 2026, the Jeandle-LLVM Authors. All Rights Reserved.
 //
 // Part of the Jeandle-LLVM project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
@@ -8,6 +8,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Analysis/JeandleInlineAdvisor.h"
 #include "llvm/Jeandle/Pipeline.h"
 #include "llvm/Transforms/Jeandle/InsertGCBarriers.h"
 #include "llvm/Transforms/Jeandle/JavaOperationLower.h"
@@ -30,6 +31,9 @@ Pipeline::Pipeline(OptimizationLevel level, LLVMContext &Ctx)
   PB.registerFunctionAnalyses(FAM);
   PB.registerLoopAnalyses(LAM);
   PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+  MAM.registerPass(
+      [&] { return PluginInlineAdvisorAnalysis(createJeandleInlineAdvisor); });
 
   PM = buildJeandlePipeline(PB, level);
 }

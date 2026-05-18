@@ -180,6 +180,15 @@ public:
   std::unique_ptr<InlineAdvice> getAdvice(CallBase &CB,
                                           bool MandatoryOnly = false);
 
+  /// Returns true if the advisor wants to be consulted for calls to
+  /// declarations (functions without a definition). By default, the inliner
+  /// skips such callsites. An advisor that can resolve callee definitions
+  /// on demand (e.g., via a callback) should override this to return true
+  /// for the specific function.
+  virtual bool shouldTryInlineDeclaration(const Function &F) const {
+    return false;
+  }
+
   /// This must be called when the Inliner pass is entered, to allow the
   /// InlineAdvisor update internal state, as result of function passes run
   /// between Inliner pass runs (for the same module).

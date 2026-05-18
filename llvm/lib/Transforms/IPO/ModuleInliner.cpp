@@ -158,7 +158,8 @@ PreservedAnalyses ModuleInlinerPass::run(Module &M,
     for (Instruction &I : instructions(F)) {
       if (auto *CB = dyn_cast<CallBase>(&I)) {
         if (Function *Callee = CB->getCalledFunction()) {
-          if (!Callee->isDeclaration())
+          if (!Callee->isDeclaration() ||
+              Advisor.shouldTryInlineDeclaration(*Callee))
             Calls->push({CB, -1});
           else if (!isa<IntrinsicInst>(I)) {
             using namespace ore;
@@ -265,7 +266,8 @@ PreservedAnalyses ModuleInlinerPass::run(Module &M,
               NewCallee = ICB->getCalledFunction();
         }
         if (NewCallee)
-          if (!NewCallee->isDeclaration())
+          if (!NewCallee->isDeclaration() ||
+              Advisor.shouldTryInlineDeclaration(*NewCallee))
             Calls->push({ICB, NewHistoryID});
       }
     }

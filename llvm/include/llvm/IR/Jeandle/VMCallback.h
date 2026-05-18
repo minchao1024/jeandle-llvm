@@ -1,6 +1,6 @@
 //===- VMCallback.h - VM Callback Interface -------------------------------===//
 //
-// Copyright (c) 2025, the Jeandle-LLVM Authors. All Rights Reserved.
+// Copyright (c) 2025, 2026, the Jeandle-LLVM Authors. All Rights Reserved.
 //
 // Part of the Jeandle-LLVM project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
@@ -10,7 +10,8 @@
 //
 // Callback interface from LLVM optimization passes to the JVM.
 // The JVM registers callbacks during compiler initialization; LLVM passes
-// invoke them to query VM-level type hierarchy information.
+// invoke them to query VM-level type hierarchy information, control inlining
+// decisions, and resolve callee definitions on demand.
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,6 +19,8 @@
 #define JEANDLE_VM_CALLBACK_H
 
 #include <cstdint>
+
+namespace llvm { class Module; }
 
 namespace llvm::jeandle {
 
@@ -87,7 +90,13 @@ enum class VMCallbackValueType : uint8_t {
       (VMCallbackValueType::Uintptr), 1)                                         \
   def(IsEffectivelyFinal, bool, Bool,                                            \
       (uintptr_t a1), (a1),                                                      \
-      (VMCallbackValueType::Uintptr), 1)
+      (VMCallbackValueType::Uintptr), 1)                                         \
+  def(ShouldInline, bool, Bool,                                                  \
+      (uintptr_t a1, uintptr_t a2), (a1, a2),                                    \
+      (VMCallbackValueType::Uintptr, VMCallbackValueType::Uintptr), 2)           \
+  def(ResolveCallee, bool, Bool,                                                 \
+      (uintptr_t a1), (a1),                                                      \
+      (VMCallbackValueType::Uintptr), 1)                                         \
 
 // =============================================================================
 // VMCallbacks struct — generated from master list
@@ -114,6 +123,13 @@ enum class VMCallbackValueType : uint8_t {
 ///   IsInterface         — Returns true if the klass is an interface.
 ///   IsObjectKlass       — Returns true if the klass is java.lang.Object.
 ///   IsEffectivelyFinal  — Returns true if no subclass can exist at runtime.
+///   ShouldInline        — Returns true if the callee should be inlined into
+///                         the caller.
+///   ResolveCallee       — Called when the inliner encounters a callee that
+///                         has only a declaration (no function body). The JVM
+///                         should add the callee's IR definition into the given
+///                         Module and return true. Returns false if the callee
+///                         cannot be resolved.
 struct VMCallbacks {
   ALL_JEANDLE_VM_CALLBACKS(DEF_VM_CALLBACK_FIELD)
 };
